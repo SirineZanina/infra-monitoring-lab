@@ -1,0 +1,81 @@
+groups:
+  - name: availability
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} target {{ $labels.instance }} is down"
+          description: "Prometheus has not been able to scrape {{ $labels.instance }} for 2 minutes."
+
+  - name: host-saturation
+    rules:
+      - alert: HostHighCpu
+        expr: 100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}"
+          description: "CPU usage has been above 85% for 5 minutes (current: {{ $value | printf \"%.0f\" }}%)."
+
+      - alert: HostLowMemory
+        expr: 100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low memory on {{ $labels.instance }}"
+          description: "Less than 10% of memory is available."
+
+      - alert: HostDiskAlmostFull
+        expr: 100 * node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"} < 10
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk almost full on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: "Less than 10% free space left."
+
+      # Saturation prediction: linear trend over the last 6h says the disk fills within 24h.
+      - alert: HostDiskWillFillIn24h
+        expr: predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"}[6h], 24 * 3600) < 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk on {{ $labels.instance }} ({{ $labels.mountpoint }}) predicted to fill within 24h"
+          description: "Based on the last 6 hours of usage, free space will reach zero in less than a day."
+
+  - name: network-interfaces
+    rules:
+      # ifOperStatus: 1 = up, 2 = down (IF-MIB)
+      - alert: InterfaceDown
+        expr: ifOperStatus == 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Interface {{ $labels.ifDescr }} down on {{ $labels.instance }}"
+          description: "The interface operational status is down."
+
+      - alert: InterfaceErrors
+        expr: rate(ifInErrors[5m]) + rate(ifOutErrors[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Errors on {{ $labels.ifDescr }} ({{ $labels.instance }})"
+          description: "More than 1 error per second on this interface for 5 minutes."
+
+      # 64-bit octet counters, converted to bits per second
+      - alert: InterfaceHighTraffic
+        expr: (rate(ifHCInOctets[5m]) + rate(ifHCOutOctets[5m])) * 8 > 50e6
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "High traffic on {{ $labels.ifDescr }} ({{ $labels.instance }})"
+          description: "Combined in/out traffic above 50 Mbit/s for 10 minutes."

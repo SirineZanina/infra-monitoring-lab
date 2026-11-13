@@ -1,0 +1,50 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Linux host metrics (CPU, memory, disk, network)
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          site: lab
+
+  # Network devices polled over SNMPv3 through snmp_exporter.
+  # Targets are the management IPs of the GNS3 routers (see gns3/router-snmpv3.cfg).
+  - job_name: snmp
+    metrics_path: /snmp
+    params:
+      auth: [lab_v3]
+      module: [if_mib]
+    static_configs:
+      - targets:
+          - 192.168.122.11   # PE1
+          - 192.168.122.12   # PE2
+        labels:
+          site: lab
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: snmp-exporter:9116
+
+  # snmp_exporter's own health metrics
+  - job_name: snmp-exporter
+    static_configs:
+      - targets: ["snmp-exporter:9116"]

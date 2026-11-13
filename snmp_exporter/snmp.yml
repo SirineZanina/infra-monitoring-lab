@@ -1,0 +1,88 @@
+# snmp_exporter configuration: SNMPv3 credentials + a compact IF-MIB module.
+# Replace the two CHANGE_ME values with the passwords set on the routers (gns3/router-snmpv3.cfg).
+auths:
+  lab_v3:
+    version: 3
+    username: monitor
+    security_level: authPriv
+    auth_protocol: SHA
+    password: CHANGE_ME_AUTH_PASSWORD
+    priv_protocol: AES
+    priv_password: CHANGE_ME_PRIV_PASSWORD
+
+modules:
+  if_mib:
+    walk:
+      - 1.3.6.1.2.1.2.2.1.2      # ifDescr
+      - 1.3.6.1.2.1.2.2.1.8      # ifOperStatus
+      - 1.3.6.1.2.1.2.2.1.14     # ifInErrors
+      - 1.3.6.1.2.1.2.2.1.20     # ifOutErrors
+      - 1.3.6.1.2.1.31.1.1.1.6   # ifHCInOctets
+      - 1.3.6.1.2.1.31.1.1.1.10  # ifHCOutOctets
+    get:
+      - 1.3.6.1.2.1.1.3.0        # sysUpTime
+    metrics:
+      - name: sysUpTime
+        oid: 1.3.6.1.2.1.1.3
+        type: gauge
+        help: Time since the network management portion of the system was last re-initialised (hundredths of a second)
+      - name: ifOperStatus
+        oid: 1.3.6.1.2.1.2.2.1.8
+        type: gauge
+        help: Operational state of the interface (1 = up, 2 = down)
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups:
+          - labels: [ifIndex]
+            labelname: ifDescr
+            oid: 1.3.6.1.2.1.2.2.1.2
+            type: DisplayString
+      - name: ifInErrors
+        oid: 1.3.6.1.2.1.2.2.1.14
+        type: counter
+        help: Inbound packets that contained errors
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups:
+          - labels: [ifIndex]
+            labelname: ifDescr
+            oid: 1.3.6.1.2.1.2.2.1.2
+            type: DisplayString
+      - name: ifOutErrors
+        oid: 1.3.6.1.2.1.2.2.1.20
+        type: counter
+        help: Outbound packets that could not be transmitted because of errors
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups:
+          - labels: [ifIndex]
+            labelname: ifDescr
+            oid: 1.3.6.1.2.1.2.2.1.2
+            type: DisplayString
+      - name: ifHCInOctets
+        oid: 1.3.6.1.2.1.31.1.1.1.6
+        type: counter
+        help: Octets received on the interface (64-bit counter)
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups:
+          - labels: [ifIndex]
+            labelname: ifDescr
+            oid: 1.3.6.1.2.1.2.2.1.2
+            type: DisplayString
+      - name: ifHCOutOctets
+        oid: 1.3.6.1.2.1.31.1.1.1.10
+        type: counter
+        help: Octets transmitted on the interface (64-bit counter)
+        indexes:
+          - labelname: ifIndex
+            type: gauge
+        lookups:
+          - labels: [ifIndex]
+            labelname: ifDescr
+            oid: 1.3.6.1.2.1.2.2.1.2
+            type: DisplayString
